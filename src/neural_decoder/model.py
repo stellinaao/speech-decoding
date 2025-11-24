@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .augmentations import GaussianSmoothing
+from .augmentations import GaussianSmoothing, TimeChannelMasking
 
 
 class GRUDecoder(nn.Module):
@@ -43,6 +43,8 @@ class GRUDecoder(nn.Module):
         self.dayWeights = torch.nn.Parameter(torch.randn(nDays, neural_dim, neural_dim))
         self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, neural_dim))
 
+        self.masking = TimeChannelMasking()
+
         for x in range(nDays):
             self.dayWeights.data[x, :, :] = torch.eye(neural_dim)
 
@@ -81,6 +83,9 @@ class GRUDecoder(nn.Module):
             self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
 
     def forward(self, neuralInput, dayIdx):
+        if self.training:
+            neuralInput = self.masking(neuralInput)
+
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
