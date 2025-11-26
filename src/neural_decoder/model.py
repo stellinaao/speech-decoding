@@ -4,7 +4,7 @@ from torch import nn
 from .augmentations import GaussianSmoothing
 
 
-class GRUDecoder(nn.Module):
+class Decoder(nn.Module):
     def __init__(
         self,
         neural_dim,
@@ -18,8 +18,9 @@ class GRUDecoder(nn.Module):
         kernelLen=14,
         gaussianSmoothWidth=0,
         bidirectional=False,
+        rnn="GRU",
     ):
-        super(GRUDecoder, self).__init__()
+        super(Decoder, self).__init__()
 
         # Defining the number of layers and the nodes in each layer
         self.layer_dim = layer_dim
@@ -47,7 +48,14 @@ class GRUDecoder(nn.Module):
             self.dayWeights.data[x, :, :] = torch.eye(neural_dim)
 
         # GRU layers
-        self.gru_decoder = nn.GRU(
+        self.decoder = nn.GRU(
+            (neural_dim) * self.kernelLen,
+            hidden_dim,
+            layer_dim,
+            batch_first=True,
+            dropout=self.dropout,
+            bidirectional=self.bidirectional,
+        ) if rnn == "GRU" else nn.LSTM(
             (neural_dim) * self.kernelLen,
             hidden_dim,
             layer_dim,
@@ -56,7 +64,7 @@ class GRUDecoder(nn.Module):
             bidirectional=self.bidirectional,
         )
 
-        for name, param in self.gru_decoder.named_parameters():
+        for name, param in self.decoder.named_parameters():
             if "weight_hh" in name:
                 nn.init.orthogonal_(param)
             if "weight_ih" in name:
@@ -108,6 +116,13 @@ class GRUDecoder(nn.Module):
                 self.hidden_dim,
                 device=self.device,
             ).requires_grad_()
+            if isinstance(self.decoder, nn.LSTM):
+                c0 = torch.zeros(
+                    self.layer_dim * 2,
+                    transformedNeural.size(0),
+                    self.hidden_dim,
+                    device=self.device,
+                ).requires_grad_()
         else:
             h0 = torch.zeros(
                 self.layer_dim,
@@ -115,8 +130,15 @@ class GRUDecoder(nn.Module):
                 self.hidden_dim,
                 device=self.device,
             ).requires_grad_()
+            if isinstance(self.decoder, nn.LSTM):
+                c0 = torch.zeros(
+                    self.layer_dim,
+                    transformedNeural.size(0),
+                    self.hidden_dim,
+                    device=self.device,
+                ).requires_grad_()
 
-        hid, _ = self.gru_decoder(stridedInputs, h0.detach())
+        hid, _ = self.decoder(stridedInputs, h0.detach()) if isinstance(self.decoder, nn.GRU) else self.decoder(stridedInputs, (h0.detach(), c0.detach()))
 
         # get seq
         seq_out = self.fc_decoder_out(hid)
