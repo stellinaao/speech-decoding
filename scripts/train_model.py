@@ -2,8 +2,8 @@
 modelName = 'speechBaseline4'
 
 args = {}
-args['outputDir'] = '/oak/stanford/groups/henderj/stfan/logs/speech_logs/' + modelName
-args['datasetPath'] = '/oak/stanford/groups/henderj/fwillett/speech/ptDecoder_ctc'
+args['outputDir'] = '/home/jasonchan/speech-decoding/logs/speech_logs/' + modelName
+args['datasetPath'] = '/home/danci/speech-decoding/competitionData/ptDecoder_ctc'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 64
@@ -21,7 +21,11 @@ args['constantOffsetSD'] = 0.2
 args['gaussianSmoothWidth'] = 2.0
 args['strideLen'] = 4
 args['kernelLen'] = 32
-args['bidirectional'] = True
+args['bidirectional'] = False
+args['time_mask_p'] = 0.2
+args['n_time_masks'] = 2
+args['channel_mask_p'] = 0
+args['n_channel_masks'] = 0
 args['l2_decay'] = 1e-5
 
 from neural_decoder.neural_decoder_trainer import trainModel
