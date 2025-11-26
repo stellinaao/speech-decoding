@@ -47,6 +47,7 @@ class Decoder(nn.Module):
         for x in range(nDays):
             self.dayWeights.data[x, :, :] = torch.eye(neural_dim)
 
+        self.rnn = rnn
         # RNN layers (either GRU or LSTM)
         self.decoder = nn.GRU(
             (neural_dim) * self.kernelLen,
@@ -116,13 +117,16 @@ class Decoder(nn.Module):
                 self.hidden_dim,
                 device=self.device,
             ).requires_grad_()
-            if isinstance(self.decoder, nn.LSTM):
+            if self.rnn == "LSTM":
                 c0 = torch.zeros(
                     self.layer_dim * 2,
                     transformedNeural.size(0),
                     self.hidden_dim,
                     device=self.device,
                 ).requires_grad_()
+                hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
+            else:
+                hid, _ = self.decoder(stridedInputs, h0.detach())
         else:
             h0 = torch.zeros(
                 self.layer_dim,
@@ -130,16 +134,16 @@ class Decoder(nn.Module):
                 self.hidden_dim,
                 device=self.device,
             ).requires_grad_()
-            if isinstance(self.decoder, nn.LSTM):
+            if self.rnn == "LSTM":
                 c0 = torch.zeros(
                     self.layer_dim,
                     transformedNeural.size(0),
                     self.hidden_dim,
                     device=self.device,
                 ).requires_grad_()
-
-        hid, _ = self.decoder(stridedInputs, h0.detach()) if isinstance(self.decoder, nn.GRU) else self.decoder(stridedInputs, (h0.detach(), c0.detach()))
-
+                hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
+            else:
+                hid, _ = self.decoder(stridedInputs, h0.detach())
         # get seq
         seq_out = self.fc_decoder_out(hid)
         return seq_out
