@@ -47,7 +47,7 @@ class Decoder(nn.Module):
         for x in range(nDays):
             self.dayWeights.data[x, :, :] = torch.eye(neural_dim)
 
-        # GRU layers
+        # RNN layers (either GRU or LSTM)
         self.decoder = nn.GRU(
             (neural_dim) * self.kernelLen,
             hidden_dim,

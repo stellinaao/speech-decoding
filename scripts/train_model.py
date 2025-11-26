@@ -2,9 +2,9 @@
 modelName = 'speechBaseline4'
 
 args = {}
-args['outputDir'] = '/oak/stanford/groups/henderj/stfan/logs/speech_logs/' + modelName
-args['datasetPath'] = '/oak/stanford/groups/henderj/fwillett/speech/ptDecoder_ctc'
-args['rnn'] = 'GRU'
+args['outputDir'] = '/home/jasonchan/speech-decoding/logs/speech_logs/' + modelName
+args['datasetPath'] = '/home/danci/speech-decoding/competitionData/ptDecoder_ctc'
+args['rnn'] = 'LSTM' # 'LSTM' or 'GRU'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 64
