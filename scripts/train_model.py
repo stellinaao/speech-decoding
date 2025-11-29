@@ -2,9 +2,8 @@
 modelName = 'speechBaseline4'
 
 args = {}
-args['outputDir'] = '/home/jasonchan/speech-decoding/logs/speech_logs/' + modelName
-args['datasetPath'] = '/home/danci/speech-decoding/competitionData/ptDecoder_ctc'
-args['rnn'] = 'LSTM' # 'LSTM' or 'GRU'
+args['outputDir'] = '../logs/speech_logs/' + modelName
+args['datasetPath'] = '../competitionData/ptDecoder_ctc'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 128
@@ -15,7 +14,7 @@ args['nBatch'] = 10000 #3000
 args['nLayers'] = 3 #5 for GRU, 2 for LSTM
 args['seed'] = 0
 args['nClasses'] = 40
-args['nInputFeatures'] = 256
+args['nInputFeatures'] = 256 # 240 # 192 # 142 # 256
 args['dropout'] = 0.2
 args['whiteNoiseSD'] = 0.8
 args['constantOffsetSD'] = 0.2
