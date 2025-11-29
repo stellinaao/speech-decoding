@@ -24,6 +24,32 @@ class MeanDriftNoise(nn.Module):
         noise = torch.randn(1, C) * self.std
         return x + noise
 
+class TimeChannelMasking(nn.Module):
+    def __init__(self, max_time_mask_pct=0.2, num_time_masks=2, max_channel_mask_pct=0.2, num_channel_masks=2):
+        super().__init__()
+        self.max_time_mask_pct = max_time_mask_pct
+        self.num_time_masks = num_time_masks
+        self.max_channel_mask_pct = max_channel_mask_pct
+        self.num_channel_masks = num_channel_masks
+
+    def forward(self, x):
+        B, T, C = x.shape
+        #time masks
+        for _ in range(self.num_time_masks):
+            time_mask_pct = torch.rand(1).item() * self.max_time_mask_pct
+            time_mask_len = int(time_mask_pct * T)
+            t0 = torch.randint(0, T - time_mask_len + 1, (1,)).item()
+            x[:, t0 : t0 + time_mask_len, :] = 0.0
+        
+        #channel masks
+        for _ in range(self.num_channel_masks):
+            channel_mask_pct = torch.rand(1).item() * self.max_channel_mask_pct
+            channel_mask_len = int(channel_mask_pct * C)
+            c0 = torch.randint(0, C - channel_mask_len + 1, (1,)).item()
+            x[:, :, c0 : c0 + channel_mask_len] = 0.0
+        
+        return x
+
 class GaussianSmoothing(nn.Module):
     """
     Apply gaussian smoothing on a

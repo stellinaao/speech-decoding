@@ -83,6 +83,10 @@ def trainModel(args):
         bidirectional=args["bidirectional"],
         rnn=args["rnn"],
         use_layernorm=args["use_layernorm"]
+        time_mask_p=args["time_mask_p"],
+        n_time_masks=args["n_time_masks"],
+        channel_mask_p=args["channel_mask_p"],
+        n_channel_masks=args["n_channel_masks"],
     ).to(device)
 
     loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
@@ -234,6 +238,10 @@ def loadModel(modelDir, nInputLayers=24, device="cuda"):
         gaussianSmoothWidth=args["gaussianSmoothWidth"],
         bidirectional=args["bidirectional"],
         rnn=args["rnn"],
+        time_mask_p=args["time_mask_p"],
+        n_time_masks=args["n_time_masks"],
+        channel_mask_p=args["channel_mask_p"],
+        n_channel_masks=args["n_channel_masks"],
     ).to(device)
 
     model.load_state_dict(torch.load(modelWeightPath, map_location=device))
