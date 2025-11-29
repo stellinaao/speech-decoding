@@ -4,6 +4,7 @@ modelName = 'speechBaseline4'
 args = {}
 args['outputDir'] = '/home/jasonchan/speech-decoding/logs/speech_logs/' + modelName
 args['datasetPath'] = '/home/danci/speech-decoding/competitionData/ptDecoder_ctc'
+args['rnn'] = 'LSTM' # 'LSTM' or 'GRU'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 128
@@ -11,7 +12,7 @@ args['lrStart'] = 0.05
 args['lrEnd'] = 0.02
 args['nUnits'] = 256
 args['nBatch'] = 10000 #3000
-args['nLayers'] = 5
+args['nLayers'] = 3 #5 for GRU, 2 for LSTM
 args['seed'] = 0
 args['nClasses'] = 40
 args['nInputFeatures'] = 256
@@ -27,6 +28,7 @@ args['n_time_masks'] = 2
 args['channel_mask_p'] = 0
 args['n_channel_masks'] = 0
 args['l2_decay'] = 1e-5
+args['use_layernorm'] = True
 
 from neural_decoder.neural_decoder_trainer import trainModel
 
