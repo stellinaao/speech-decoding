@@ -19,6 +19,7 @@ class Decoder(nn.Module):
         gaussianSmoothWidth=0,
         bidirectional=False,
         rnn="GRU",
+        use_layernorm=False,
     ):
         super(Decoder, self).__init__()
 
@@ -43,33 +44,76 @@ class Decoder(nn.Module):
         )
         self.dayWeights = torch.nn.Parameter(torch.randn(nDays, neural_dim, neural_dim))
         self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, neural_dim))
+        self.use_layernorm = use_layernorm
+        self.rnn = rnn
 
         for x in range(nDays):
             self.dayWeights.data[x, :, :] = torch.eye(neural_dim)
 
-        self.rnn = rnn
-        # RNN layers (either GRU or LSTM)
-        self.decoder = nn.GRU(
-            (neural_dim) * self.kernelLen,
-            hidden_dim,
-            layer_dim,
-            batch_first=True,
-            dropout=self.dropout,
-            bidirectional=self.bidirectional,
-        ) if rnn == "GRU" else nn.LSTM(
-            (neural_dim) * self.kernelLen,
-            hidden_dim,
-            layer_dim,
-            batch_first=True,
-            dropout=self.dropout,
-            bidirectional=self.bidirectional,
-        )
+        if self.use_layernorm: #build layers individually + insert layernorm between each
+            self.rnn_layers = nn.ModuleList()
+            self.lns = nn.ModuleList()
 
-        for name, param in self.decoder.named_parameters():
-            if "weight_hh" in name:
-                nn.init.orthogonal_(param)
-            if "weight_ih" in name:
-                nn.init.xavier_uniform_(param)
+            for i in range(layer_dim):
+                input_size = (neural_dim * self.kernelLen) if i == 0 else (hidden_dim * (2 if bidirectional else 1))
+
+                if rnn == "GRU":
+                    rnn_layer = nn.GRU(
+                        input_size,
+                        hidden_dim,
+                        num_layers=1,
+                        batch_first=True,
+                        dropout=0, #if using layer norm, do dropout afterwards not within the layer!
+                        bidirectional=bidirectional,
+                    )
+                else:
+                    rnn_layer = nn.LSTM(
+                        input_size,
+                        hidden_dim,
+                        num_layers=1,
+                        batch_first=True,
+                        dropout=0,
+                        bidirectional=bidirectional,
+                    )
+                
+                for name, param in rnn_layer.named_parameters():
+                    if "weight_hh" in name:
+                        nn.init.orthogonal_(param)
+                    if "weight_ih" in name:
+                        nn.init.xavier_uniform_(param)
+                
+                self.rnn_layers.append(rnn_layer)
+
+                if i < layer_dim - 1: #no layernorm after last layer
+                    self.lns.append(nn.LayerNorm(hidden_dim * (2 if bidirectional else 1)))
+                
+            if dropout > 0: #dropout between layers
+                self.dropout_layer = nn.Dropout(dropout)
+            else:
+                self.dropout_layer = None
+        else:
+            # RNN layers (either GRU or LSTM)
+            self.decoder = nn.GRU(
+                (neural_dim) * self.kernelLen,
+                hidden_dim,
+                layer_dim,
+                batch_first=True,
+                dropout=self.dropout,
+                bidirectional=self.bidirectional,
+            ) if rnn == "GRU" else nn.LSTM(
+                (neural_dim) * self.kernelLen,
+                hidden_dim,
+                layer_dim,
+                batch_first=True,
+                dropout=self.dropout,
+                bidirectional=self.bidirectional,
+            )
+
+            for name, param in self.decoder.named_parameters():
+                if "weight_hh" in name:
+                    nn.init.orthogonal_(param)
+                if "weight_ih" in name:
+                    nn.init.xavier_uniform_(param)
 
         # Input layers
         for x in range(nDays):
@@ -110,40 +154,67 @@ class Decoder(nn.Module):
         )
 
         # apply RNN layer
-        if self.bidirectional:
-            h0 = torch.zeros(
-                self.layer_dim * 2,
-                transformedNeural.size(0),
-                self.hidden_dim,
-                device=self.device,
-            ).requires_grad_()
-            if self.rnn == "LSTM":
-                c0 = torch.zeros(
+        if self.use_layernorm:
+            x = stridedInputs
+            for i, rnn_layer in enumerate(self.rnn_layers):
+                h0 = torch.zeros(
+                    (2 if self.bidirectional else 1),
+                    x.size(0),
+                    self.hidden_dim,
+                    device=self.device,
+                ).requires_grad_()
+                if self.rnn == "LSTM":
+                    c0 = torch.zeros(
+                        (2 if self.bidirectional else 1),
+                        x.size(0),
+                        self.hidden_dim,
+                        device=self.device,
+                    ).requires_grad_()
+                    x, _ = rnn_layer(x, (h0.detach(), c0.detach()))
+                else:
+                    x, _ = rnn_layer(x, h0.detach())
+                
+                if i < len(self.lns): #no layernorm after last layer
+                    x = self.lns[i](x)
+                
+                if self.dropout_layer is not None and i < len(self.rnn_layers) - 1:
+                    x = self.dropout_layer(x)
+            hid = x
+        else: #original single multi-layer RNN
+            if self.bidirectional:
+                h0 = torch.zeros(
                     self.layer_dim * 2,
                     transformedNeural.size(0),
                     self.hidden_dim,
                     device=self.device,
                 ).requires_grad_()
-                hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
+                if self.rnn == "LSTM":
+                    c0 = torch.zeros(
+                        self.layer_dim * 2,
+                        transformedNeural.size(0),
+                        self.hidden_dim,
+                        device=self.device,
+                    ).requires_grad_()
+                    hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
+                else:
+                    hid, _ = self.decoder(stridedInputs, h0.detach())
             else:
-                hid, _ = self.decoder(stridedInputs, h0.detach())
-        else:
-            h0 = torch.zeros(
-                self.layer_dim,
-                transformedNeural.size(0),
-                self.hidden_dim,
-                device=self.device,
-            ).requires_grad_()
-            if self.rnn == "LSTM":
-                c0 = torch.zeros(
+                h0 = torch.zeros(
                     self.layer_dim,
                     transformedNeural.size(0),
                     self.hidden_dim,
                     device=self.device,
                 ).requires_grad_()
-                hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
-            else:
-                hid, _ = self.decoder(stridedInputs, h0.detach())
+                if self.rnn == "LSTM":
+                    c0 = torch.zeros(
+                        self.layer_dim,
+                        transformedNeural.size(0),
+                        self.hidden_dim,
+                        device=self.device,
+                    ).requires_grad_()
+                    hid, _ = self.decoder(stridedInputs, (h0.detach(), c0.detach()))
+                else:
+                    hid, _ = self.decoder(stridedInputs, h0.detach())
         # get seq
         seq_out = self.fc_decoder_out(hid)
         return seq_out
