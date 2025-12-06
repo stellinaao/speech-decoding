@@ -32,15 +32,15 @@ MANIFEST
 *.manifest
 *.spec
 
-# Data
+# Stellina's Folders
 competitionData/
-
-# Logs
 logs/
+vars/
 
 # Stellina's Files
 running_lfads.ipynb
 notebooks/gpfa.ipynb
+notebooks/opt_W1.npy
 notebooks/train2time_log.txt
 
 # Installer logs
