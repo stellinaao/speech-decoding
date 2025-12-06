@@ -39,7 +39,6 @@ competitionData/
 logs/
 
 # Stellina's Files
-vars
 running_lfads.ipynb
 notebooks/gpfa.ipynb
 notebooks/train2time_log.txt

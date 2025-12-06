@@ -18,7 +18,7 @@ class Decoder(nn.Module):
         kernelLen=14,
         gaussianSmoothWidth=0,
         bidirectional=False,
-        rnn="GRU",
+        rnn="rnn",
         use_layernorm=False,
         time_mask_p=0.2,
         n_time_masks=2,

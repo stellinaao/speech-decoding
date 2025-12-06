@@ -82,7 +82,7 @@ def trainModel(args):
         gaussianSmoothWidth=args["gaussianSmoothWidth"],
         bidirectional=args["bidirectional"],
         rnn=args["rnn"],
-        use_layernorm=args["use_layernorm"]
+        use_layernorm=args["use_layernorm"],
         time_mask_p=args["time_mask_p"],
         n_time_masks=args["n_time_masks"],
         channel_mask_p=args["channel_mask_p"],
